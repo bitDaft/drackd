@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/debug",
+        "-DCMAKE_BUILD_TYPE=Debug"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build Release",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/release",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Run Debug",
+      "type": "shell",
+      "command": "./build/debug/ProjectTUI",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Release",
+      "type": "shell",
+      "command": "./build/release/ProjectTUI",
+      "problemMatcher": []
+    }
+  ]
+}
