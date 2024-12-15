@@ -13,12 +13,13 @@ set(CMAKE_BUILD_TYPE Debug) # Default to Debug if not specified
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DDEBUG_BUILD)
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_definitions(-DRELEASE_BUILD)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_definitions(-DDEBUG_BUILD)
+  add_definitions(-D_DEBUG_)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_definitions(-DRELEASE_BUILD)
+  add_definitions(-D_RELEASE_)
 endif()
-
 
 # Add source files
 file(GLOB SOURCES "src/*.cpp")
@@ -45,3 +46,10 @@ target_link_libraries(${PROJECT_NAME}
   pthread
   stdc++fs
 )
+
+find_package(X11 REQUIRED)
+
+if(X11_FOUND)
+  include_directories(${X11_INCLUDE_DIR})
+  target_link_libraries(drackd ${X11_LIBRARIES})
+endif()
