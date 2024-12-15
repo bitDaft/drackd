@@ -19,10 +19,5 @@ void showUsage(const std::string &programName)
   std::cout << "  -h <height>   Specify window height (used in floating mode).\n\n";
   std::cout << "  --help        Show this help message.\n";
 }
-void exitWithUsage()
-{
-  showUsage("drackd");
-  exit(EXIT_FAILURE);
-}
 
 #endif
