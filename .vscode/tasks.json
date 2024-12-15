@@ -5,77 +5,85 @@
       "label": "Configure Debug",
       "type": "shell",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/debug",
-        "-DCMAKE_BUILD_TYPE=Debug"
-      ],
+      "args": ["-S", ".", "-B", "build/debug", "-DCMAKE_BUILD_TYPE=Debug"],
       "group": {
         "kind": "build",
         "isDefault": false
+      },
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
       }
     },
     {
       "label": "Build Debug",
       "type": "shell",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/debug"
-      ],
-      "dependsOn": [
-        "Configure Debug"
-      ],
+      "args": ["--build", "build/debug"],
+      "dependsOn": ["Configure Debug"],
       "group": {
         "kind": "build",
         "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
       }
     },
     {
       "label": "Run Debug",
       "type": "shell",
       "command": "./bin/debug/ProjectTUI",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
+      }
     },
     {
       "label": "Configure Release",
       "type": "shell",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/release",
-        "-DCMAKE_BUILD_TYPE=Release"
-      ],
+      "args": ["-S", ".", "-B", "build/release", "-DCMAKE_BUILD_TYPE=Release"],
       "group": {
         "kind": "build",
         "isDefault": false
+      },
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
       }
     },
     {
       "label": "Build Release",
       "type": "shell",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/release"
-      ],
-      "dependsOn": [
-        "Configure Release"
-      ],
+      "args": ["--build", "build/release"],
+      "dependsOn": ["Configure Release"],
       "group": {
         "kind": "build",
         "isDefault": false
+      },
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
       }
     },
     {
       "label": "Run Release",
       "type": "shell",
       "command": "./bin/release/ProjectTUI",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "revealProblems": "onProblem",
+        "close": true
+      }
     }
   ]
 }

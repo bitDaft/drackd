@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ProjectTUI VERSION 1.0 LANGUAGES CXX)
+project(drackd VERSION 1.0 LANGUAGES CXX)
 
 # Set C++ Standard
 set(CMAKE_CXX_STANDARD 17)
@@ -12,6 +12,12 @@ set(CMAKE_BUILD_TYPE Debug) # Default to Debug if not specified
 # Define build types
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DDEBUG_BUILD)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DRELEASE_BUILD)
+endif()
 
 
 # Add source files
