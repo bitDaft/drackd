@@ -29,12 +29,10 @@ private:
   Drawable pixmap;
 
 private:
-  void createAppWindow();
-  void handleWindowEvents();
+  void init();
+  void setupWindow();
+  bool handleEvent(XEvent &event);
   void render();
-  void grabKeyboard();
-  void makeFullscreen();
-  void updateSizes(int windowWidth, int windowHeight);
 };
 
 #endif
