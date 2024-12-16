@@ -3,133 +3,152 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <X11/keysym.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
 
 #include "application.hpp"
-#include "usage.hpp"
-
-// forward declaring needed function
-bool parseArguments(AppConfig &appConfig, int argc, char **argv);
-void checkAndReadStdin(std::string &input);
+#include "utils.hpp"
 
 Application::Application(int argc, char *argv[])
 {
-  if (argc == 1 || !parseArguments(appConfig, argc, argv))
-    exitWithUsage();
+  if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+    std::cerr << "warning: no locale support\n";
+
+  std::string errorMsg;
+  if (argc == 1 || !parseArguments(appConfig, argc, argv, errorMsg))
+    printAndDie(true, errorMsg);
 
   checkAndReadStdin(stdinData);
 }
 
 Application::~Application()
 {
+  XDestroyWindow(display, window);
+  XCloseDisplay(display);
 }
 
-void Application::createAppWindow()
+void Application::init()
 {
+  display = XOpenDisplay(NULL);
+  if (!display)
+    printAndDie(false, "Unable to open X display");
+  screen = DefaultScreen(display);
+  root = RootWindow(display, screen);
+
+  XSetWindowAttributes swa;
+  swa.override_redirect = False;
+  swa.background_pixel = BlackPixel(display, screen);
+  swa.event_mask = SubstructureRedirectMask | SubstructureNotifyMask | StructureNotifyMask | ExposureMask |
+                   PropertyChangeMask | KeyPressMask | VisibilityChangeMask | PropertyChangeMask | ResizeRedirectMask;
+  window = XCreateWindow(display, root, 0, 0, appConfig.width, appConfig.height, 0,
+                         CopyFromParent, CopyFromParent, CopyFromParent,
+                         CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
+
+  gc = XCreateGC(display, window, 0, NULL);
+  // pixmap = XCreatePixmap(display, root, appConfig.width, appConfig.height, DefaultDepth(display, screen));
+
+  clip = XInternAtom(display, "CLIPBOARD", False);
+  utf8 = XInternAtom(display, "UTF8_STRING", False);
 }
 
-void Application::updateSizes(int windowWidth, int windowHeight)
+void Application::run()
 {
-  appConfig.width = windowWidth;
-  appConfig.height = windowHeight;
-
-  // TODO: rerender everything
+  init();
+  XSetForeground(display, gc, WhitePixel(display, screen));
+  setupWindow();
+  if (appConfig.grabKeyboard)
+    grabKeyboard(display);
+  XEvent event;
+  bool aa = true;
+  while (aa)
+  {
+    XNextEvent(display, &event);
+    aa = handleEvent(event);
+    render();
+    XFlush(display);
+  }
 }
-
-bool parseArguments(AppConfig &appConfig, int argc, char **argv)
+void Application::setupWindow()
 {
-  int opt;
-  while ((opt = getopt(argc, argv, "fFC:c:w:h:g")) != -1)
-  {
-    switch (opt)
-    {
-    case 'f':
-      appConfig.floating = true;
-      appConfig.managed = false;
-      appConfig.fullscreen = false;
-      break;
-    case 'F':
-      appConfig.fullscreen = !appConfig.floating;
-      appConfig.managed = false;
-      break;
-    case 'c':
-      if (appConfig.usingConfigFile)
-        break;
-      appConfig.usingConfigFile = false;
-      appConfig.filePath = optarg;
-      break;
-    case 'C':
-      appConfig.usingConfigFile = true;
-      appConfig.filePath = optarg;
-      break;
-    case 'g':
-      appConfig.grabKeyboard = true;
-      break;
-    case 'w':
-      appConfig.width = std::stoi(optarg);
-      break;
-    case 'h':
-      appConfig.height = std::stoi(optarg);
-      break;
-    default:
-      return false;
-    }
-  }
+  XClassHint ch = {"drackd", "drackd"};
+  XStoreName(display, window, "drackd");
+  XSetClassHint(display, window, &ch);
 
-  // Resolve mutually exclusive arguments
-  if (appConfig.filePath.empty())
+  struct
   {
-    std::cerr << "Error: You must specify either -c <path> or -C <path>\n\n";
-    return false;
-  }
+    unsigned long flags;
+    unsigned long functions;
+    unsigned long decorations;
+    long inputMode;
+    unsigned long status;
+  } hints = {2, 0, 0, 0, 0}; // Disable decorations
 
-  // Handle missing width/height when floating
-  if (appConfig.floating && (appConfig.width == 0 || appConfig.height == 0))
+  XChangeProperty(display, window, XInternAtom(display, "_MOTIF_WM_HINTS", False), XA_ATOM, 32, PropModeReplace,
+                  (unsigned char *)&hints, 5);
+
+  Atom dump;
+  XChangeProperty(display, window, XInternAtom(display, "_NET_WM_WINDOW_TYPE", False), XA_ATOM, 32,
+                  PropModeReplace, (unsigned char *)&(dump = XInternAtom(display, "_NET_WM_WINDOW_TYPE_NORMAL", False)), 1);
+  if (appConfig.fullscreen)
   {
-    std::cerr << "Error: Floating mode requires both -w and -h options.\n\n";
-    return false;
+    XChangeProperty(display, window, XInternAtom(display, "_NET_WM_STATE", False), XA_ATOM, 32,
+                    PropModeReplace, (unsigned char *)&(dump = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False)), 1);
   }
-
-#ifdef _DEBUG_
-  // Debug: Display parsed configuration
-  std::cout << "Configuration:\n";
-  std::cout << "  Mode: " << (appConfig.fullscreen ? "Fullscreen" : (appConfig.floating ? "Floating" : "Managed")) << "\n";
-  std::cout << "  File Path: " << appConfig.filePath << "\n";
+  XSizeHints *sh;
   if (appConfig.floating)
   {
-    std::cout << "  Window Dimensions: " << appConfig.width << "x" << appConfig.height << "\n";
+    // make the window non-resizable to make it floating
+    sh = XAllocSizeHints();
+    sh->flags = PMinSize | PMaxSize;
+    sh->min_width = sh->max_width = appConfig.width;
+    sh->min_height = sh->max_height = appConfig.height;
+    XSetWMNormalHints(display, window, sh);
+    XFree(sh);
   }
-  std::cout << "  Grab Keyboard: " << (appConfig.grabKeyboard ? "Yes" : "No") << "\n";
-#endif
-  return true;
+
+  XMapWindow(display, window);
+  XEvent e;
+  while (true)
+  {
+    XNextEvent(display, &e);
+    if (e.type == MapNotify)
+      break;
+  }
+
+  if (appConfig.floating)
+  {
+    // Make the window resizable again after floating
+    sh = XAllocSizeHints();
+    sh->flags = PMinSize | PMaxSize | PPosition;
+    sh->min_width = 10;
+    sh->max_width = INT32_MAX;
+    sh->min_height = 10;
+    sh->max_height = INT32_MAX;
+    XSetWMNormalHints(display, window, sh);
+    XFree(sh);
+  }
 }
 
-void checkAndReadStdin(std::string &input)
+bool Application::handleEvent(XEvent &event)
 {
-  fd_set readfds;
-  struct timeval timeout;
-
-  FD_ZERO(&readfds);
-  FD_SET(STDIN_FILENO, &readfds);
-
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 0;
-
-  int result = select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout);
-
-  if (result > 0 && FD_ISSET(STDIN_FILENO, &readfds))
+  if (event.type == KeyPress)
   {
-    char buffer[1024];
-    while (std::cin.read(buffer, sizeof(buffer)))
-    {
-      input.append(buffer, std::cin.gcount());
+    std::cout << "key pressed\n";
+    KeySym key = XLookupKeysym(&event.xkey, 0); // Get the key symbol
+    if (key == XK_Escape)
+    {               // Check if the Escape key was pressed
+      return false; // Exit the loop
     }
-    input.append(buffer, std::cin.gcount());
   }
-
-#ifdef _DEBUG_
-  if (input.length() > 0)
+  else
   {
-    std::cout << "Stdin Data Received: " << input << "\n";
+    std::cout << "Unhandled event type: " << event.type << std::endl;
+    return true;
   }
-#endif
+}
+
+void Application::render()
+{
+  XDrawLine(display, window, gc, 10, 60, 180, 20);
 }

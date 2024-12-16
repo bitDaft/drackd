@@ -11,7 +11,7 @@ Container::~Container()
 
 void Container::setDimension(float width, float height, bool abs)
 {
-  width = width
+  width = width;
 }
 
 void Container::updateSizes(int windowWidth, int windowHeight)
