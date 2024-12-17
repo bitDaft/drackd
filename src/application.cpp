@@ -39,8 +39,10 @@ void Application::init()
   XSetWindowAttributes swa;
   swa.override_redirect = False;
   swa.background_pixel = BlackPixel(display, screen);
-  swa.event_mask = SubstructureRedirectMask | SubstructureNotifyMask | StructureNotifyMask | ExposureMask |
-                   PropertyChangeMask | KeyPressMask | VisibilityChangeMask | PropertyChangeMask | ResizeRedirectMask;
+  swa.event_mask = SubstructureRedirectMask | SubstructureNotifyMask |
+                   StructureNotifyMask | ExposureMask |
+                   PropertyChangeMask | KeyPressMask |
+                   VisibilityChangeMask | PropertyChangeMask;
   window = XCreateWindow(display, root, 0, 0, appConfig.width, appConfig.height, 0,
                          CopyFromParent, CopyFromParent, CopyFromParent,
                          CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
@@ -121,9 +123,9 @@ void Application::setupWindow()
     // Make the window resizable again after floating
     sh = XAllocSizeHints();
     sh->flags = PMinSize | PMaxSize | PPosition;
-    sh->min_width = 10;
+    sh->min_width = 100;
     sh->max_width = INT32_MAX;
-    sh->min_height = 10;
+    sh->min_height = 100;
     sh->max_height = INT32_MAX;
     XSetWMNormalHints(display, window, sh);
     XFree(sh);
@@ -141,11 +143,18 @@ bool Application::handleEvent(XEvent &event)
       return false; // Exit the loop
     }
   }
+  else if (event.type == ConfigureNotify)
+  {
+    XConfigureEvent xce = event.xconfigure;
+    appConfig.width = xce.width;
+    appConfig.height = xce.height;
+    std::cout << "Window resized: " << appConfig.width << "x" << appConfig.height << std::endl;
+  }
   else
   {
     std::cout << "Unhandled event type: " << event.type << std::endl;
-    return true;
   }
+  return true;
 }
 
 void Application::render()
