@@ -20,7 +20,7 @@ void printAndDie(bool printUsage = false, const std::string &message = "")
 bool parseArguments(AppConfig &appConfig, int argc, char **argv, std::string &errorMessage)
 {
   int opt;
-  while ((opt = getopt(argc, argv, "fFC:c:w:h:g")) != -1)
+  while ((opt = getopt(argc, argv, "C:fFc:w:h:g")) != -1)
   {
     switch (opt)
     {
@@ -42,6 +42,7 @@ bool parseArguments(AppConfig &appConfig, int argc, char **argv, std::string &er
     case 'C':
       appConfig.usingConfigFile = true;
       appConfig.filePath = optarg;
+
       break;
     case 'g':
       appConfig.grabKeyboard = true;
@@ -129,6 +130,23 @@ void grabKeyboard(Display *display)
     nanosleep(&ts, NULL);
   }
   printAndDie(false, "Could not grab keyboard");
+}
+
+void grabfocus(Display *display, Window &window)
+{
+  struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000000};
+  Window focuswin;
+  int i, revertwin;
+
+  for (i = 0; i < 100; ++i)
+  {
+    XGetInputFocus(display, &focuswin, &revertwin);
+    if (focuswin == window)
+      return;
+    XSetInputFocus(display, window, RevertToParent, CurrentTime);
+    nanosleep(&ts, NULL);
+  }
+  printAndDie(false, "Could not grab focus");
 }
 
 #endif

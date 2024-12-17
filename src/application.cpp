@@ -61,12 +61,15 @@ void Application::run()
   setupWindow();
   if (appConfig.grabKeyboard)
     grabKeyboard(display);
+  grabfocus(display, window);
   XEvent event;
-  bool aa = true;
-  while (aa)
+  bool shouldContinue = true;
+  while (true)
   {
     XNextEvent(display, &event);
-    aa = handleEvent(event);
+    shouldContinue = handleEvent(event);
+    if (!shouldContinue)
+      break;
     render();
     XFlush(display);
   }
